@@ -3,6 +3,97 @@ from tkinter import filedialog, messagebox, ttk
 import base64
 import os
 from PIL import Image
+import io
+
+ANIMATIONS = {
+    "🌧️ 비 (Rain)": """
+let drops = [];
+for(let i=0; i<80; i++) { drops.push({ x: Math.random() * cW, y: Math.random() * cH, l: Math.random() * 1.5 + 15, v: Math.random() * 6 + 12 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.beginPath();
+   for(let i=0; i<drops.length; i++) { let p = drops[i]; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.v * 0.1, p.y + p.l); } ctx.stroke();
+   for(let i=0; i<drops.length; i++) { drops[i].y += drops[i].v; drops[i].x += drops[i].v * 0.1; if (drops[i].y > cH) { drops[i].y = -20; drops[i].x = Math.random() * cW; } }
+}
+    """,
+    "❄️ 작은 눈 (Snow)": """
+let flakes = [];
+for(let i=0; i<100; i++) { flakes.push({ x: Math.random() * cW, y: Math.random() * cH, r: Math.random() * 2 + 1, d: Math.random() * 100 }); }
+let angle = 0;
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath();
+   for(let i=0; i<flakes.length; i++) { let p = flakes[i]; ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2, true); } ctx.fill();
+   angle += 0.01;
+   for(let i=0; i<flakes.length; i++) { let p = flakes[i]; p.y += Math.cos(angle + p.d) + 1 + p.r/2; p.x += Math.sin(angle) * 2; if(p.x > cW+5 || p.x < -5 || p.y > cH) { if(i%3 > 0) { p.x = Math.random() * cW; p.y = -10; } else { if(Math.sin(angle) > 0) { p.x = -5; p.y = Math.random()*cH; } else { p.x = cW+5; p.y = Math.random()*cH; } } } }
+}
+    """,
+    "🌫️ 수증기 / 안개 (Steam/Fog)": """
+let puffs = [];
+for(let i=0; i<15; i++) { puffs.push({ x: Math.random() * cW, y: cH + Math.random() * 100, s: Math.random() * 50 + 50, a: Math.random(), v: Math.random() * 0.5 + 0.5 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<puffs.length; i++) { let p = puffs[i]; ctx.beginPath(); let rad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s); rad.addColorStop(0, 'rgba(255,255,255,'+(0.1*p.a)+')'); rad.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = rad; ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); p.y -= p.v; p.x += Math.sin(p.a += 0.02) * 0.5; if(p.y < -p.s) { p.y = cH + p.s; p.x = Math.random() * cW; } }
+}
+    """,
+    "✨ 별빛 (Starlight)": """
+let stars = [];
+for(let i=0; i<80; i++) { stars.push({ x: Math.random() * cW, y: Math.random() * cH, r: Math.random() * 1.5, s: Math.random() * 0.05 + 0.01, a: Math.random() * Math.PI * 2 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<stars.length; i++) { let p = stars[i]; ctx.beginPath(); ctx.fillStyle = 'rgba(255,255,255,' + (Math.sin(p.a)+1)/2 * 0.8 + ')'; ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); p.a += p.s; }
+}
+    """,
+    "🌸 벚꽃/꽃잎 (Cherry Blossoms)": """
+let petals = [];
+for(let i=0; i<40; i++) { petals.push({ x: Math.random() * cW, y: Math.random() * cH, w: Math.random() * 8 + 5, h: Math.random() * 6 + 4, a: Math.random() * 360, vY: Math.random() * 1.5 + 1, vX: Math.random() * 2 - 1, rV: Math.random() * 2 - 1, c: 'rgba(255, 183, 197, '+(Math.random()*0.5+0.5)+')' }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<petals.length; i++) { let p = petals[i]; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a * Math.PI / 180); ctx.fillStyle = p.c; ctx.beginPath(); ctx.ellipse(0, 0, p.w, p.h, 0, 0, Math.PI*2); ctx.fill(); ctx.restore(); p.y += p.vY; p.x += p.vX + Math.sin(p.a*0.02)*0.5; p.a += p.rV; if(p.y > cH + 10) { p.y = -10; p.x = Math.random() * cW; } }
+}
+    """,
+    "☀️ 태양 빛내림 (Sun Rays)": """
+let rays = [];
+for(let i=0; i<6; i++) { rays.push({ x: Math.random() * cW, w: Math.random() * 100 + 50, a: Math.random() * 0.1 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<rays.length; i++) { let p = rays[i]; ctx.beginPath(); let g = ctx.createLinearGradient(0, 0, p.w, cH); g.addColorStop(0, 'rgba(255,255,240,'+(0.05 + Math.sin(p.a)*0.03)+')'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.moveTo(p.x, 0); ctx.lineTo(p.x + p.w, 0); ctx.lineTo(p.x + p.w + cH*0.5, cH); ctx.lineTo(p.x + cH*0.5, cH); ctx.fill(); p.x += 0.2; p.a += 0.01; if(p.x > cW) { p.x = -150; } }
+}
+    """,
+    "🍂 낙엽 (Autumn Leaves)": """
+let leaves = [];
+for(let i=0; i<30; i++) { leaves.push({ x: Math.random() * cW, y: Math.random() * cH, s: Math.random() * 6 + 4, a: Math.random() * 360, vY: Math.random() * 2 + 1, vX: Math.random() * 1 - 0.5, rV: Math.random() * 4 - 2, c: Math.random() > 0.5 ? 'rgba(212, 110, 31, '+(Math.random()*0.5+0.5)+')' : 'rgba(189, 73, 23, '+(Math.random()*0.5+0.5)+')' }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<leaves.length; i++) { let p = leaves[i]; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a * Math.PI / 180); ctx.fillStyle = p.c; ctx.beginPath(); ctx.moveTo(0,-p.s); ctx.bezierCurveTo(p.s,-p.s,p.s,p.s,0,p.s); ctx.bezierCurveTo(-p.s,p.s,-p.s,-p.s,0,-p.s); ctx.fill(); ctx.restore(); p.y += p.vY; p.x += p.vX + Math.sin(p.a*0.01)*0.5; p.a += p.rV; if(p.y > cH + p.s) { p.y = -p.s; p.x = Math.random() * cW; } }
+}
+    """,
+    "🎇 반딧불이 (Fireflies)": """
+let flies = [];
+for(let i=0; i<40; i++) { flies.push({ x: Math.random() * cW, y: Math.random() * cH, s: Math.random() * 2 + 1, a: Math.random() * Math.PI * 2, vX: Math.random() * 1 - 0.5, vY: Math.random() * 1 - 0.5 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<flies.length; i++) { let p = flies[i]; ctx.beginPath(); let rad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s*3); rad.addColorStop(0, 'rgba(200,255,100,'+((Math.sin(p.a)+1)/2 * 0.8 + 0.2)+')'); rad.addColorStop(1, 'rgba(200,255,100,0)'); ctx.fillStyle = rad; ctx.arc(p.x, p.y, p.s*3, 0, Math.PI*2); ctx.fill(); p.x += p.vX + Math.sin(p.a)*0.2; p.y += p.vY + Math.cos(p.a)*0.2; p.a += 0.05; if(p.x < 0 || p.x > cW) p.vX *= -1; if(p.y < 0 || p.y > cH) p.vY *= -1; }
+}
+    """,
+    "🫧 버블 / 물방울 (Bubbles)": """
+let bubbles = [];
+for(let i=0; i<30; i++) { bubbles.push({ x: Math.random() * cW, y: Math.random() * cH, r: Math.random() * 6 + 2, vY: Math.random() * 1.5 + 0.5, a: Math.random() * Math.PI*2 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<bubbles.length; i++) { let p = bubbles[i]; ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.arc(p.x - p.r*0.3, p.y - p.r*0.3, p.r*0.2, 0, Math.PI*2); ctx.fill(); p.y -= p.vY; p.x += Math.sin(p.a+=0.05)*0.3; if(p.y < -p.r) { p.y = cH + p.r; p.x = Math.random() * cW; } }
+}
+    """,
+    "☄️ 불티 / 먼지 (Embers/Dust)": """
+let embers = [];
+for(let i=0; i<50; i++) { embers.push({ x: Math.random() * cW, y: cH + Math.random() * cH, s: Math.random() * 2 + 1, vY: Math.random() * 3 + 1, vX: Math.random() * 2 - 1, a: Math.random() * Math.PI*2 }); }
+function drawAnim() {
+   ctx.clearRect(0, 0, cW, cH);
+   for(let i=0; i<embers.length; i++) { let p = embers[i]; ctx.beginPath(); ctx.fillStyle = 'rgba(255,'+(100+Math.random()*100)+',50,'+((Math.sin(p.a)+1)/2 * 0.8+0.2)+')'; ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); p.y -= p.vY; p.x += p.vX + Math.sin(p.a+=0.1)*1; if(p.y < -10) { p.y = cH + 10; p.x = Math.random() * cW; } }
+}
+    """,
+    "❌ 애니메이션 없음 (None)": """
+function drawAnim() { ctx.clearRect(0, 0, cW, cH); }
+    """
+}
 
 def get_average_color(image_path):
     try:
@@ -15,96 +106,171 @@ def get_average_color(image_path):
         light_color = (int(min(color[0]*1.2, 255)), int(min(color[1]*1.2, 255)), int(min(color[2]*1.2, 255)))
         return f"rgb({dark_color[0]}, {dark_color[1]}, {dark_color[2]})", f"rgb({light_color[0]}, {light_color[1]}, {light_color[2]})"
     except Exception as e:
-        print("Error getting color:", e)
         return "#1a1a1a", "#ffffff"
 
-def select_image():
-    path = filedialog.askopenfilename(title="이미지 선택", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-    if path:
-        img_var.set(path)
-
-def select_mp3():
-    path = filedialog.askopenfilename(title="MP3 선택", filetypes=[("Audio Files", "*.mp3;*.wav")])
-    if path:
-        mp3_var.set(path)
-
-def generate_card():
-    img_path = img_var.get()
-    mp3_path = mp3_var.get()
-    main_text = main_text_var.get()
-    sub_text = sub_text_var.get()
-    footer_text = footer_text_var.get()
-    
-    if not img_path or not mp3_path:
-        messagebox.showwarning("입력 오류", "이미지와 MP3 파일을 모두 선택해주세요.")
-        return
+class CardBuilderApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("감성 카드 빌더 2.0")
+        self.root.geometry("450x700")
+        self.root.configure(padx=20, pady=20)
         
-    save_path = filedialog.asksaveasfilename(title="저장 위치 선택", defaultextension=".html", filetypes=[("HTML Files", "*.html")])
-    if not save_path:
-        return
+        self.media_paths = []
+        self.mp3_path = ""
+        self.media_type = tk.StringVar(value="image")
+        
+        type_frame = ttk.LabelFrame(self.root, text="배경 유형 선택")
+        type_frame.pack(fill="x", pady=5)
+        ttk.Radiobutton(type_frame, text="이미지 (최대 5장)", variable=self.media_type, value="image", command=self.update_media_btn).pack(side="left", padx=10, pady=5)
+        ttk.Radiobutton(type_frame, text="동영상", variable=self.media_type, value="video", command=self.update_media_btn).pack(side="left", padx=10, pady=5)
 
-    try:
-        bg_color, accent_color = get_average_color(img_path)
+        self.btn_media = ttk.Button(self.root, text="이미지 파일 선택 (0장)...", command=self.select_media)
+        self.btn_media.pack(fill="x", pady=5)
+        
+        self.btn_mp3 = ttk.Button(self.root, text="🎵 배경음악(MP3) 선택...", command=self.select_mp3)
+        self.btn_mp3.pack(fill="x", pady=5)
 
-        with open(img_path, "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+        ttk.Label(self.root, text="✨ 캔버스 애니메이션:").pack(anchor="w", pady=(10, 0))
+        self.anim_combo = ttk.Combobox(self.root, values=list(ANIMATIONS.keys()), state="readonly")
+        self.anim_combo.current(0)
+        self.anim_combo.pack(fill="x", pady=2)
 
-        with open(mp3_path, "rb") as f:
-            mp3_b64 = base64.b64encode(f.read()).decode('utf-8')
+        ttk.Label(self.root, text="✍️ 상단 메인 문구:").pack(anchor="w", pady=(10, 0))
+        self.main_text_input = tk.Text(self.root, height=3)
+        self.main_text_input.pack(fill="x", pady=2)
+        self.main_text_input.insert("1.0", "창밖의 비는 세상을 적시고,\n커피는 마음을 데운다")
+        
+        ttk.Label(self.root, text="영어 서브 타이틀:").pack(anchor="w", pady=(10, 0))
+        self.sub_text_input = ttk.Entry(self.root)
+        self.sub_text_input.pack(fill="x", pady=2)
+        self.sub_text_input.insert(0, "Rainy day, warm coffee")
+        
+        ttk.Label(self.root, text="하단 푸터 문구:").pack(anchor="w", pady=(10, 0))
+        self.footer_text_input = ttk.Entry(self.root)
+        self.footer_text_input.pack(fill="x", pady=2)
+        self.footer_text_input.insert(0, "Rainy day, warm coffee")
+
+        self.btn_generate = ttk.Button(self.root, text="🎨 HTML 카드 생성하기", command=self.generate_card)
+        self.btn_generate.pack(fill="x", pady=20)
+        
+    def update_media_btn(self):
+        t = "동영상" if self.media_type.get() == "video" else "이미지 파일 목록"
+        self.media_paths = []
+        self.btn_media.config(text=f"배경 {t} 선택 (초기화됨)")
+
+    def select_media(self):
+        if self.media_type.get() == "image":
+            files = filedialog.askopenfilenames(title="이미지 파일 선택 (최대 5장)", filetypes=[("Images", "*.png *.jpg *.jpeg")])
+            if files:
+                if len(files) > 5:
+                    messagebox.showwarning("제한", "최대 5장까지만 선택됩니다.")
+                    files = files[:5]
+                self.media_paths = list(files)
+                self.btn_media.config(text=f"선택됨: {len(files)}장")
+        else:
+            file = filedialog.askopenfilename(title="동영상 파일 선택", filetypes=[("Videos", "*.mp4 *.mov *.webm")])
+            if file:
+                self.media_paths = [file]
+                self.btn_media.config(text=f"선택됨: {os.path.basename(file)}")
+
+    def select_mp3(self):
+        filepath = filedialog.askopenfilename(title="MP3 파일 선택", filetypes=[("Audio Files", "*.mp3 *.wav")])
+        if filepath:
+            self.mp3_path = filepath
+            self.btn_mp3.config(text=f"선택됨: {os.path.basename(filepath)}")
+
+    def generate_card(self):
+        if not self.media_paths or not self.mp3_path:
+            messagebox.showerror("오류", "배경 파일(이미지/동영상)과 MP3 파일을 모두 선택해주세요.")
+            return
             
-        # Extract extension for mime type
-        img_ext = img_path.split('.')[-1].lower()
-        img_mime = "image/jpeg" if img_ext in ["jpg", "jpeg"] else f"image/{img_ext}"
-        
-        audio_ext = mp3_path.split('.')[-1].lower()
-        audio_mime = f"audio/{audio_ext}"
+        try:
+            with open(self.mp3_path, "rb") as f:
+                mp3_b64 = base64.b64encode(f.read()).decode('utf-8')
+            audio_ext = self.mp3_path.split('.')[-1].lower()
+            audio_mime = f"audio/{audio_ext}"
+            
+            media_html = ""
+            css_keyframes = ""
+            css_img_rules = ""
+            bg_color, accent_color = "#1a1a1a", "#ffffff"
+            
+            if self.media_type.get() == "video":
+                v_path = self.media_paths[0]
+                with open(v_path, "rb") as f:
+                    v_b64 = base64.b64encode(f.read()).decode('utf-8')
+                v_ext = v_path.split('.')[-1].lower()
+                v_mime = f"video/{v_ext}"
+                media_html = f'<video src="data:{v_mime};base64,{v_b64}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; position:absolute; left:0; top:0;"></video>'
+            else:
+                img_data_list = []
+                for idx, path in enumerate(self.media_paths):
+                    with open(path, "rb") as f:
+                        img_bytes = f.read()
+                    if idx == 0:
+                        bg_color, accent_color = get_average_color(path)
+                    b64 = base64.b64encode(img_bytes).decode('utf-8')
+                    ext = path.split('.')[-1].lower()
+                    mime = "image/jpeg" if ext in ["jpg", "jpeg"] else f"image/{ext}"
+                    img_data_list.append((mime, b64))
+                
+                if len(img_data_list) == 1:
+                    media_html = f'<img src="data:{img_data_list[0][0]};base64,{img_data_list[0][1]}" alt="Card Image">'
+                    css_keyframes = """
+                    .slideshow img { width: 100%; height: 100%; object-fit: cover; animation: zoom 25s infinite alternate ease-in-out; }
+                    @keyframes zoom { from { transform: scale(1); } to { transform: scale(1.15); } }
+                    """
+                else:
+                    n = len(img_data_list)
+                    t_time = n * 4
+                    p_in = (1.0 / t_time) * 100
+                    p_vis = (3.5 / t_time) * 100
+                    p_out = (4.0 / t_time) * 100
+                    
+                    for idx, (mime, b64) in enumerate(img_data_list):
+                        media_html += f'<img src="data:{mime};base64,{b64}" class="slide-{idx}">\\n'
+                        css_img_rules += f".slideshow img.slide-{idx} {{ animation-delay: {idx*4}s; }}\\n"
+                    
+                    css_keyframes = f"""
+                    .slideshow img {{ position: absolute; width:100%; height:100%; object-fit: cover; opacity: 0; animation: fade_slide {t_time}s infinite ease-in-out; }}
+                    @keyframes fade_slide {{
+                        0% {{ opacity: 0; transform: scale(1); }}
+                        {p_in:.2f}% {{ opacity: 1; transform: scale(1.02); }}
+                        {p_vis:.2f}% {{ opacity: 1; transform: scale(1.08); }}
+                        {p_out:.2f}% {{ opacity: 0; transform: scale(1.1); }}
+                        100% {{ opacity: 0; transform: scale(1); }}
+                    }}
+                    {css_img_rules}
+                    """
 
-        # HTML Template
-        html_content = f"""<!DOCTYPE html>
+            js_anim_logic = ANIMATIONS.get(self.anim_combo.get(), "")
+            main_text_val = self.main_text_input.get("1.0", tk.END).strip().replace("\\n", "<br>")
+            sub_text_val = self.sub_text_input.get().strip()
+            footer_text_val = self.footer_text_input.get().strip()
+
+            html_content = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emotional Card</title>
     <style>
-        :root {{
-            --bg-color: {bg_color};
-            --accent-color: {accent_color};
-        }}
-        body {{
-            margin: 0; padding: 20px 0; box-sizing: border-box;
-            background-color: var(--bg-color); color: #fff;
-            font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
-            display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; overflow-x: hidden; overflow-y: auto; transition: background-color 0.5s ease;
-        }}
-        .card-container {{
-            margin: auto; width: 90%; max-width: 480px; background: rgba(0, 0, 0, 0.4);
-            border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15);
-            overflow: hidden; position: relative; display: flex; flex-direction: column;
-            animation: fadeIn 1s ease-out;
-        }}
+        :root {{ --bg-color: {bg_color}; --accent-color: {accent_color}; }}
+        body {{ margin: 0; padding: 20px 0; box-sizing: border-box; background-color: var(--bg-color); color: #fff; font-family: 'Noto Sans KR', 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; overflow-y: auto; transition: background-color 0.5s ease; }}
+        .card-container {{ margin: auto; width: 90%; max-width: 480px; background: rgba(0, 0, 0, 0.4); border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15); overflow: hidden; position: relative; display: flex; flex-direction: column; animation: fadeIn 1s ease-out; }}
         @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
         .header {{ padding: 24px 20px; text-align: center; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }}
         .header h1 {{ font-size: 19px; margin: 0 0 8px 0; font-weight: 400; letter-spacing: 1.5px; line-height: 1.5; text-shadow: 1px 1px 10px rgba(0,0,0,0.8); }}
         .header h2 {{ font-size: 13px; margin: 0; color: rgba(255,255,255,0.7); font-style: italic; font-family: 'Georgia', serif; letter-spacing: 2px; }}
         .image-container {{ position: relative; width: 100%; height: 420px; overflow: hidden; }}
-        .image-container img {{ width: 100%; height: 100%; object-fit: cover; animation: zoom 25s infinite alternate ease-in-out; }}
-        @keyframes zoom {{ from {{ transform: scale(1); }} to {{ transform: scale(1.15); }} }}
-        .gradient-overlay {{
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(to bottom, var(--bg-color) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 75%, var(--bg-color) 100%);
-            z-index: 1; pointer-events: none;
-        }}
-        #rainCanvas {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }}
+        .slideshow {{ position: absolute; width: 100%; height: 100%; left: 0; top: 0; }}
+        {css_keyframes}
+        .gradient-overlay {{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, var(--bg-color) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 75%, var(--bg-color) 100%); z-index: 1; pointer-events: none; }}
+        #animCanvas {{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }}
         .controls {{ padding: 20px 25px; background: linear-gradient(to top, var(--bg-color) 80%, transparent); z-index: 10; }}
         #visualizer {{ width: 100%; height: 40px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 15px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); }}
         .player {{ display: flex; align-items: center; gap: 18px; }}
-        .play-btn {{
-            width: 50px; height: 50px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
-            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0;
-        }}
+        .play-btn {{ width: 50px; height: 50px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; }}
         .play-btn:hover {{ background: rgba(255,255,255,0.2); transform: scale(1.05); border-color: rgba(255,255,255,0.4); }}
         .progress-wrapper {{ flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }}
         .slider {{ -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); outline: none; margin-bottom: 8px; cursor: pointer; }}
@@ -120,13 +286,15 @@ def generate_card():
 <body>
 <div class="card-container">
     <div class="header">
-        <h1>{main_text.replace(chr(10), '<br>')}</h1>
-        <h2>{sub_text}</h2>
+        <h1>{main_text_val}</h1>
+        <h2>{sub_text_val}</h2>
     </div>
     <div class="image-container">
-        <img src="data:{img_mime};base64,{img_b64}" alt="Card Image">
+        <div class="slideshow">
+            {media_html}
+        </div>
         <div class="gradient-overlay"></div>
-        <canvas id="rainCanvas"></canvas>
+        <canvas id="animCanvas"></canvas>
     </div>
     <div class="controls">
         <canvas id="visualizer"></canvas>
@@ -143,26 +311,24 @@ def generate_card():
         </div>
     </div>
     <div class="footer">
-        {footer_text}
+        {footer_text_val}
     </div>
 </div>
-<audio id="bgm" loop>
-    <source src="data:{audio_mime};base64,{mp3_b64}" type="{audio_mime}">
-</audio>
+<audio id="bgm" loop><source src="data:{audio_mime};base64,{mp3_b64}" type="{audio_mime}"></audio>
 <script>
-const canvas = document.getElementById('rainCanvas');
+const canvas = document.getElementById('animCanvas');
 const ctx = canvas.getContext('2d');
-function resizeWindow() {{ canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }}
+let cW = 0, cH = 0;
+function resizeWindow() {{ cW = canvas.width = canvas.offsetWidth; cH = canvas.height = canvas.offsetHeight; }}
 window.addEventListener('resize', resizeWindow); resizeWindow();
-let drops = [];
-for(let i=0; i<80; i++) {{ drops.push({{ x: Math.random() * canvas.width, y: Math.random() * canvas.height, l: Math.random() * 1.5 + 15, v: Math.random() * 6 + 12 }}); }}
-function drawRain() {{
-   ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.beginPath();
-   for(let i=0; i<drops.length; i++) {{ let p = drops[i]; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.v * 0.1, p.y + p.l); }} ctx.stroke();
-   for(let i=0; i<drops.length; i++) {{ drops[i].y += drops[i].v; drops[i].x += drops[i].v * 0.1; if (drops[i].y > canvas.height) {{ drops[i].y = -20; drops[i].x = Math.random() * canvas.width; }} }}
-   requestAnimationFrame(drawRain);
+
+{js_anim_logic}
+
+function loopAnim() {{
+    drawAnim();
+    requestAnimationFrame(loopAnim);
 }}
-drawRain();
+loopAnim();
 
 const audio = document.getElementById('bgm');
 const playBtn = document.getElementById('playBtn');
@@ -172,7 +338,6 @@ const volumeSlider = document.getElementById('volumeSlider');
 const visualizerCanvas = document.getElementById('visualizer');
 const vCtx = visualizerCanvas.getContext('2d');
 let isPlaying = false, audioCtx, analyser, source;
-
 playBtn.addEventListener('click', () => {{
     if(!audioCtx) {{
         audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 128;
@@ -202,51 +367,15 @@ function visualize() {{
 </body>
 </html>"""
 
-        with open(save_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-        
-        messagebox.showinfo("성공", f"감성 카드가 성공적으로 생성되었습니다!\n저장 위치: {save_path}")
+            save_path = filedialog.asksaveasfilename(defaultextension=".html", filetypes=[("HTML files", "*.html")], initialfile="card.html")
+            if save_path:
+                with open(save_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                messagebox.showinfo("성공", "카드가 성공적으로 생성되었습니다!")
+        except Exception as e:
+            messagebox.showerror("오류", f"카드 생성 중 오류 발생: {str(e)}")
 
-    except Exception as e:
-        messagebox.showerror("오류", f"생성 중 오류가 발생했습니다.\n{str(e)}")
-
-# Create GUI
-root = tk.Tk()
-root.title("감성 카드 빌더")
-root.geometry("500x400")
-root.configure(padx=20, pady=20)
-
-style = ttk.Style()
-style.configure("TLabel", font=("Malgun Gothic", 10))
-style.configure("TButton", font=("Malgun Gothic", 10))
-
-# Variables
-img_var = tk.StringVar()
-mp3_var = tk.StringVar()
-main_text_var = tk.StringVar(value="창밖의 비는 세상을 적시고,\n커피는 마음을 데운다")
-sub_text_var = tk.StringVar(value="Rainy day, warm coffee")
-footer_text_var = tk.StringVar(value="Rainy day, warm coffee")
-
-# UI Layout
-ttk.Label(root, text="이미지 파일 (메인 사진):").grid(row=0, column=0, sticky="w", pady=(0, 5))
-ttk.Entry(root, textvariable=img_var, width=40).grid(row=0, column=1, padx=5, pady=(0, 5))
-ttk.Button(root, text="찾아보기", command=select_image).grid(row=0, column=2, pady=(0, 5))
-
-ttk.Label(root, text="MP3 파일 (배경음악):").grid(row=1, column=0, sticky="w", pady=5)
-ttk.Entry(root, textvariable=mp3_var, width=40).grid(row=1, column=1, padx=5, pady=5)
-ttk.Button(root, text="찾아보기", command=select_mp3).grid(row=1, column=2, pady=5)
-
-ttk.Label(root, text="상단 메인 문구:").grid(row=2, column=0, sticky="w", pady=5)
-ttk.Entry(root, textvariable=main_text_var, width=40).grid(row=2, column=1, columnspan=2, sticky="w", padx=5, pady=5)
-
-ttk.Label(root, text="영문 서브 타이틀:").grid(row=3, column=0, sticky="w", pady=5)
-ttk.Entry(root, textvariable=sub_text_var, width=40).grid(row=3, column=1, columnspan=2, sticky="w", padx=5, pady=5)
-
-ttk.Label(root, text="하단 푸터 문구:").grid(row=4, column=0, sticky="w", pady=5)
-ttk.Entry(root, textvariable=footer_text_var, width=40).grid(row=4, column=1, columnspan=2, sticky="w", padx=5, pady=5)
-
-# Generate Button
-generate_btn = tk.Button(root, text="HTML 카드 생성하기", command=generate_card, bg="#4CAF50", fg="white", font=("Malgun Gothic", 12, "bold"), pady=10)
-generate_btn.grid(row=5, column=0, columnspan=3, sticky="we", pady=30)
-
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CardBuilderApp(root)
+    root.mainloop()
