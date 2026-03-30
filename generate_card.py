@@ -45,20 +45,22 @@ html_content = f"""<!DOCTYPE html>
         }}
         body {{
             margin: 0;
-            padding: 0;
+            padding: 20px 0;
+            box-sizing: border-box;
             background-color: var(--bg-color);
             color: #fff;
             font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             transition: background-color 0.5s ease;
         }}
         
         .card-container {{
+            margin: auto;
             width: 90%;
             max-width: 480px;
             background: rgba(0, 0, 0, 0.4);

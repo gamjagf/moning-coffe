@@ -57,8 +57,8 @@ if submitted:
     <title>Emotional Card</title>
     <style>
         :root {{ --bg-color: {bg_color}; --accent-color: {accent_color}; }}
-        body {{ margin: 0; padding: 0; background-color: var(--bg-color); color: #fff; font-family: 'Noto Sans KR', 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; transition: background-color 0.5s ease; }}
-        .card-container {{ width: 90%; max-width: 480px; background: rgba(0, 0, 0, 0.4); border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15); overflow: hidden; position: relative; display: flex; flex-direction: column; animation: fadeIn 1s ease-out; }}
+        body {{ margin: 0; padding: 20px 0; box-sizing: border-box; background-color: var(--bg-color); color: #fff; font-family: 'Noto Sans KR', 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; overflow-y: auto; transition: background-color 0.5s ease; }}
+        .card-container {{ margin: auto; width: 90%; max-width: 480px; background: rgba(0, 0, 0, 0.4); border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.15); overflow: hidden; position: relative; display: flex; flex-direction: column; animation: fadeIn 1s ease-out; }}
         @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
         .header {{ padding: 24px 20px; text-align: center; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }}
         .header h1 {{ font-size: 19px; margin: 0 0 8px 0; font-weight: 400; letter-spacing: 1.5px; line-height: 1.5; text-shadow: 1px 1px 10px rgba(0,0,0,0.8); }}
